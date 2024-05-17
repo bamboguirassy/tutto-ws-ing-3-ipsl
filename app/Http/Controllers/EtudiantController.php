@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Etudiant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Throwable;
 
 class EtudiantController extends Controller
@@ -14,7 +15,12 @@ class EtudiantController extends Controller
      */
     public function index()
     {
-        $etudiants = Etudiant::all();
+        $etudiants = Etudiant::paginate(10);
+        // cacher des champs supplémentaires
+        // $etudiants->makeHidden([
+        //     'email',
+        //     'tekephone',
+        // ]);
         return response()->json($etudiants, 200);
     }
 
@@ -60,6 +66,17 @@ class EtudiantController extends Controller
      */
     public function show(Etudiant $etudiant)
     {
+        $executed = RateLimiter::attempt(
+            'show-user',
+            $perMinute = 5,
+            function() {
+                // Send message...
+            }
+        );
+         
+        if (! $executed) {
+          return 'Too many messages sent!';
+        }
         return response()->json($etudiant, 200);
     }
 
@@ -113,5 +130,14 @@ class EtudiantController extends Controller
         }
 
         return response()->json(null, 204);
+    }
+
+
+    public function search(Request $request)
+    {
+        $etudiants = Etudiant::where('nom', 'like', '%'.$request->search.'%')
+            ->orWhere('prenom', 'like', '%'.$request->search.'%')
+            ->paginate(10);
+        return response()->json($etudiants, 200);
     }
 }
